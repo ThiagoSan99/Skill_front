@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #eef2f8;
+  --foreground: #0d1f36;
+  --card: #ffffff;
+  --card-foreground: #0d1f36;
+  --primary: #1d4374;
+  --primary-foreground: #ffffff;
+  --muted: #e4eaf4;
+  --muted-foreground: #5a7099;
+  --accent: #1a9e6e;
+  --accent-foreground: #ffffff;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(29, 67, 116, 0.12);
+  --input: transparent;
+  --input-background: #f4f7fc;
+  --radius: 0.75rem;
+  --sidebar: #0f2540;
+  --sidebar-foreground: #e8f0fb;
+  --sidebar-primary: #ffffff;
+  --sidebar-border: rgba(255,255,255,0.08);
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito Sans', 'Nunito', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
