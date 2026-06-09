@@ -38,6 +38,7 @@ export interface UserSession {
   partnerFirstName: string;
   partnerLastName: string;
   partnerAvatar: string;
+  partnerUserId: string;
   scheduledDate: string;
   durationHours: number;
   creditsExchanged: number;
@@ -45,6 +46,14 @@ export interface UserSession {
   role: "TEACHER" | "LEARNER";
   rating: number | null;
   meetingLink: string | null;
+}
+
+export interface CreateReviewRequest {
+  sessionId: string;
+  reviewerUserId: string;
+  reviewedUserId: string;
+  rating: number;
+  comment: string;
 }
 
 export const sessionsApi = {
@@ -60,6 +69,9 @@ export const sessionsApi = {
   getMySessions: () =>
     http.get<UserSession[]>("/sessions/me"),
 
+  updateStatus: (id: string, status: string) =>
+    http.patch<ExchangeSession>(`/sessions/${id}/status?status=${status}`),
+
   getMyAvailability: () =>
     http.get<TeacherAvailability[]>("/users/me/availability"),
 
@@ -68,4 +80,7 @@ export const sessionsApi = {
 
   deleteAvailability: (id: string) =>
     http.delete(`/users/me/availability/${id}`),
+
+  createReview: (data: CreateReviewRequest) =>
+    http.post<{ reviewId: string }>("/reviews", data),
 };

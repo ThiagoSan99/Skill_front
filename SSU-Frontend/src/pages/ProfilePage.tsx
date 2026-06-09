@@ -7,7 +7,7 @@ import {
   type Review,
   type Category,
 } from "../api/profile.api";
-import { sessionsApi, type TeacherAvailability } from "../api/sessions.api";
+import { sessionsApi, type TeacherAvailability, type UserSession } from "../api/sessions.api";
 
 const LEVEL_COLOR: Record<string, string> = {
   Básico: "#1a9e6e",
@@ -75,6 +75,7 @@ export default function ProfilePage() {
   });
   const [addingSkill, setAddingSkill] = useState(false);
 
+  const [learnerSessions, setLearnerSessions] = useState<UserSession[]>([]);
   const [availability, setAvailability] = useState<TeacherAvailability[]>([]);
   const [showAddAvailability, setShowAddAvailability] = useState(false);
   const [newAvailability, setNewAvailability] = useState({
@@ -91,7 +92,7 @@ export default function ProfilePage() {
     }
     setLoading(true);
     try {
-      const [profileData, skillsData, reviewsData, teacherSessions, learnerSessions, availData] =
+      const [profileData, skillsData, reviewsData, teacherSessions, learnerCountSessions, availData, allSessions] =
         await Promise.all([
           profileApi.getProfile(),
           profileApi.getMySkills(),
@@ -99,12 +100,14 @@ export default function ProfilePage() {
           profileApi.getSessionsByTeacher(user.userId),
           profileApi.getSessionsByLearner(user.userId),
           sessionsApi.getMyAvailability(),
+          sessionsApi.getMySessions(),
         ]);
       setProfile(profileData);
       setSkills(skillsData);
       setReviews(reviewsData);
       setSessionCount(teacherSessions.length);
-      setLearnerSessionCount(learnerSessions.length);
+      setLearnerSessionCount(learnerCountSessions.length);
+      setLearnerSessions(allSessions.filter((s) => s.role === "LEARNER" && s.status === "COMPLETED"));
       setAvailability(availData);
       setBioText(profileData.bio ?? "");
     } catch {
@@ -391,61 +394,47 @@ export default function ProfilePage() {
             </p>
           )}
 
-          {skills.map((sk) => {
-            const pct = sk.recommendedSessions > 0
-              ? Math.min(Math.round(((sk.sessionsCompleted ?? 0) / sk.recommendedSessions) * 100), 100)
-              : 0;
-            return (
-              <div
-                key={sk.userSkillId}
-                className="rounded-2xl px-5 py-4"
-                style={{
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <p style={{ color: "var(--foreground)", fontWeight: 700 }}>
-                        {sk.skillName}
-                      </p>
-                      <button
-                        onClick={() => handleDeleteSkill(sk.userSkillId)}
-                        style={{ color: "var(--muted-foreground)", fontSize: "0.7rem", background: "var(--muted)", border: "none", cursor: "pointer", width: "22px", height: "22px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
-                        title="Eliminar"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full font-bold"
-                        style={{
-                          background: LEVEL_BG[sk.proficiencyLevel] ?? "#e4eaf4",
-                          color: LEVEL_COLOR[sk.proficiencyLevel] ?? "var(--muted-foreground)",
-                        }}
-                      >
-                        {sk.proficiencyLevel}
-                      </span>
-                      <span style={{ color: "var(--muted-foreground)", fontSize: "0.75rem" }}>
-                        {sk.sessionsCompleted ?? 0}/{sk.recommendedSessions} sesiones
-                      </span>
-                    </div>
-                    <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--muted)" }}>
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, background: pct >= 100 ? "#1a9e6e" : "#2e6bb5" }}
-                      />
-                    </div>
-                    <p className="font-nunito-sans text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-                      {pct >= 100 ? "Completado" : `${pct}% de progreso`}
+          {skills.map((sk) => (
+            <div
+              key={sk.userSkillId}
+              className="rounded-2xl px-5 py-4"
+              style={{
+                background: "var(--card)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <p style={{ color: "var(--foreground)", fontWeight: 700 }}>
+                      {sk.skillName}
                     </p>
+                    <button
+                      onClick={() => handleDeleteSkill(sk.userSkillId)}
+                      style={{ color: "var(--muted-foreground)", fontSize: "0.7rem", background: "var(--muted)", border: "none", cursor: "pointer", width: "22px", height: "22px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
+                      title="Eliminar"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-bold"
+                      style={{
+                        background: LEVEL_BG[sk.proficiencyLevel] ?? "#e4eaf4",
+                        color: LEVEL_COLOR[sk.proficiencyLevel] ?? "var(--muted-foreground)",
+                      }}
+                    >
+                      {sk.proficiencyLevel}
+                    </span>
+                    <span style={{ color: "var(--muted-foreground)", fontSize: "0.75rem" }}>
+                      {sk.sessionsCompleted ?? 0}/{sk.recommendedSessions} sesiones
+                    </span>
                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
 
           {showAddSkill ? (
             <div
@@ -688,37 +677,62 @@ export default function ProfilePage() {
 
       {/* Tab: Lo que aprendo */}
       {activeTab === "aprende" && (
-        <div>
-          {learnerSessionCount === 0 ? (
-            <div className="text-center py-12">
-              <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem", marginBottom: "8px" }}>
-                Aún no tienes habilidades en aprendizaje.
-              </p>
-              <p style={{ color: "var(--muted-foreground)", fontSize: "0.85rem" }}>
-                Explora la sección de habilidades para encontrar un tutor.
-              </p>
-            </div>
+        <div className="flex flex-col gap-3">
+          {learnerSessions.length === 0 ? (
+            <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem", padding: "1rem 0" }}>
+              Aún no has tomado clases como aprendiz.
+            </p>
           ) : (
-            <div className="flex flex-col gap-3">
-              <div className="rounded-2xl p-5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#2e6bb5,#1a9e6e)", color: "#fff", fontWeight: 800, fontSize: "1rem" }}>
-                    {learnerSessionCount}
-                  </div>
-                  <div>
-                    <p className="font-nunito font-bold" style={{ color: "var(--foreground)" }}>
-                      Habilidades en aprendizaje
-                    </p>
-                    <p className="font-nunito-sans text-sm" style={{ color: "var(--muted-foreground)" }}>
-                      Has participado en {learnerSessionCount} sesiones como aprendiz
-                    </p>
+            learnerSessions.map((s) => {
+              const statusColors: Record<string, { label: string; bg: string; color: string }> = {
+                COMPLETED: { label: "Completada", bg: "#d1faed", color: "#1a9e6e" },
+                PENDING: { label: "Programada", bg: "#fef3c7", color: "#d97706" },
+                ACCEPTED: { label: "Programada", bg: "#fef3c7", color: "#d97706" },
+                CANCELLED: { label: "Cancelada", bg: "#fee2e2", color: "#e11d48" },
+                DISPUTED: { label: "Disputada", bg: "#fee2e2", color: "#e11d48" },
+              };
+              const sc = statusColors[s.status] ?? { label: s.status, bg: "var(--muted)", color: "var(--muted-foreground)" };
+              const d = new Date(s.scheduledDate);
+              const timeStr = d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", hour12: false });
+              return (
+                <div
+                  key={s.sessionId}
+                  className="rounded-2xl px-5 py-4"
+                  style={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p style={{ color: "var(--foreground)", fontWeight: 700 }}>
+                          {s.skillName}
+                        </p>
+                        {s.status === "COMPLETED" && s.rating !== null && (
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span key={star} style={{ color: star <= s.rating! ? "#f59e0b" : "var(--border)", fontSize: "12px" }}>★</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <p style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", marginTop: "1px" }}>
+                        con {s.partnerFirstName} {s.partnerLastName} · {formatDate(s.scheduledDate)} · {timeStr}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: sc.bg, color: sc.color }}>
+                        {sc.label}
+                      </span>
+                      <span className="font-nunito font-extrabold" style={{ color: "#e11d48", fontSize: "0.85rem" }}>
+                        -{Math.abs(s.creditsExchanged).toFixed(1)} hrs
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <p className="font-nunito-sans text-sm" style={{ color: "var(--muted-foreground)" }}>
-                Las habilidades que estás aprendiendo se mostrarán aquí a medida que completes sesiones como aprendiz.
-              </p>
-            </div>
+              );
+            })
           )}
         </div>
       )}
